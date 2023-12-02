@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members List with Pagination and Search</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .pagination {
+            display: flex;
+            list-style: none;
+            padding: 0;
+            margin-top: 10px;
+        }
+        .page-item {
+            margin-right: 5px;
+        }
+        .page-link {
+            text-decoration: none;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .page-link:hover {
+            background-color: #ddd;
+        }
+        .active {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .search-bar {
+            margin-top: 10px;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Members List</h2>
+
+    <div class="search-bar">
+        <label for="searchInput">Search: </label>
+        <input type="text" id="searchInput" oninput="handleSearch()">
+    </div>
+
+    <table id="membersTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+            </tr>
+        </thead>
+        <tbody id="membersTableBody">
+            <!-- Member data will be inserted here dynamically -->
+        </tbody>
+    </table>
+
+    <ul class="pagination" id="pagination"></ul>
+
+    <script>
+        const itemsPerPage = 10;
+        let currentPage = 1;
+        let membersData = [];
+        let filteredMembers = [];
+
+        document.addEventListener('DOMContentLoaded', function () {
+            fetchDataAndPopulateTable();
+        });
+
+        function fetchDataAndPopulateTable() {
+            fetch('https://geektrust.s3-ap-southeast-1.amazonaws.com/adminui-problem/members.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok, status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    membersData = data;
+                    filteredMembers = [...membersData];
+                    renderTable(currentPage);
+                    renderPagination();
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        function renderTable(page) {
+            const tableBody = document.getElementById('membersTableBody');
+            tableBody.innerHTML = '';
+
+            const start = (page - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageMembers = filteredMembers.slice(start, end);
+
+            pageMembers.forEach(member => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${member.id}</td>
+                    <td>${member.name}</td>
+                    <td>${member.email}</td>
+                    <td>${member.role}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            addPaginationButton('First', 1);
+            addPaginationButton('Previous', currentPage - 1);
+
+            for (let i = 1; i <= totalPages; i++) {
+                addPaginationButton(i, i);
+            }
+
+            addPaginationButton('Next', currentPage + 1);
+            addPaginationButton('Last', totalPages);
+
+            highlightCurrentPage();
+        }
+
+        function addPaginationButton(label, targetPage) {
+            const li = document.createElement('li');
+            li.classList.add('page-item');
+            const link = document.createElement('a');
+            link.classList.add('page-link');
+            link.href = '#';
+            link.textContent = label;
+
+            link.addEventListener('click', function () {
+                if (targetPage >= 1 && targetPage <= Math.ceil(filteredMembers.length / itemsPerPage)) {
+                    currentPage = targetPage;
+                    renderTable(currentPage);
+                    renderPagination();
+                }
+            });
+
+            li.appendChild(link);
+            pagination.appendChild(li);
+        }
+
+        function highlightCurrentPage() {
+            const links = document.querySelectorAll('.page-link');
+            links.forEach(link => {
+                link.classList.remove('active');
+            });
+
+            const currentLink = document.querySelector(`.page-link:contains('${currentPage}')`);
+            if (currentLink) {
+                currentLink.classList.add('active');
+            }
+        }
+
+        function handleSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchTerm = searchInput.value.trim().toLowerCase();
+
+            filteredMembers = membersData.filter(member =>
+                member.id.toLowerCase().includes(searchTerm) ||
+                member.name.toLowerCase().includes(searchTerm) ||
+                member.email.toLowerCase().includes(searchTerm) ||
+                member.role.toLowerCase().includes(searchTerm)
+            );
+
+            currentPage = 1;
+            renderTable(currentPage);
+            renderPagination();
+        }
+    </script>
+
+</body>
+</html>
